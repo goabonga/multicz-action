@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz init'
+description: 'Run `multicz init` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Directory to write multicz.toml into. (--path)'
+    required: false
+    default: ''
+  force:
+    description: 'Overwrite an existing config. (--force, boolean)'
+    required: false
+    default: 'false'
+  bare:
+    description: 'Skip auto-discovery and write a generic single-component stub. (--bare, boolean)'
+    required: false
+    default: 'false'
+  print:
+    description: 'Print the rendered config to stdout instead of writing a file. (--print, boolean)'
+    required: false
+    default: 'false'
+  detect:
+    description: 'Scan and summarise detected components without rendering the full TOML. (--detect, boolean)'
+    required: false
+    default: 'false'
+  output:
+    description: 'text | json (only meaningful with --detect). (--output)'
+    required: false
+    default: ''
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json)"
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz init
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # value flags
+        if [ -n "${{ inputs.path }}" ]; then ARGS+=("--path" "${{ inputs.path }}"); fi
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=("--output" "${{ inputs.output }}"); fi
+
+        # boolean flags
+        if [ "${{ inputs.force }}" = "true" ]; then ARGS+=("--force"); fi
+        if [ "${{ inputs.bare }}" = "true" ]; then ARGS+=("--bare"); fi
+        if [ "${{ inputs.print }}" = "true" ]; then ARGS+=("--print"); fi
+        if [ "${{ inputs.detect }}" = "true" ]; then ARGS+=("--detect"); fi
+
+        # short-flag aliases skipped: -p (--path), -f (--force), -o (--output)
+
+        multicz init "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.output }}" = "json" ]; then
+          {
+            echo "json<<EOF_JSON"
+            cat /tmp/multicz-output.txt
+            echo "EOF_JSON"
+          } >> "$GITHUB_OUTPUT"
+        fi
