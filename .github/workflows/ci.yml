@@ -47,23 +47,19 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: multicz --version
 
-  shellcheck:
-    name: shellcheck action.yml
+  actionlint:
+    name: actionlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Extract and lint embedded shell
+
+      - name: Lint workflows and composite actions
+        # actionlint is the canonical linter for GitHub Actions YAML.
+        # It runs shellcheck on every `run:` block across workflows and
+        # composite actions, masking `${{ ... }}` expressions properly
+        # (which a raw shellcheck invocation can't do). One pass covers
+        # every `*/action.yml` plus the workflows in `.github/workflows/`.
         run: |
-          # Pull every `run: |` block out of action.yml and feed it to
-          # shellcheck so we catch quoting/expansion bugs in the action's
-          # composite steps before they hit users.
-          python3 - <<'PY' > /tmp/snippets.sh
-          import re, sys, pathlib
-          src = pathlib.Path('action.yml').read_text()
-          for m in re.finditer(r'run: \|\n((?:[ \t]+.*\n?)+)', src):
-              block = m.group(1)
-              dedent = min((len(l) - len(l.lstrip()) for l in block.splitlines() if l.strip()), default=0)
-              print('\n'.join(l[dedent:] for l in block.splitlines()))
-              print()
-          PY
-          shellcheck -s bash /tmp/snippets.sh
+          set -euo pipefail
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color .github/workflows/*.yml action.yml */action.yml
