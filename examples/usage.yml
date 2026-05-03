@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+# A reference workflow showing the most common multicz patterns, gated by
+# `multicz changed`. Drop into `.github/workflows/release.yml` (or split
+# across multiple workflows) and adapt the `build` matrix to your project.
+
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.changed.outputs.list }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: goabonga/multicz-action@v1
+      - id: changed
+        run: |
+          set -euo pipefail
+          LIST=$(multicz changed --output json | jq -c '.changed')
+          echo "list=$LIST" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.list != '[]'
+    strategy:
+      matrix:
+        component: ${{ fromJson(needs.detect.outputs.list) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: echo "building ${{ matrix.component }}"
+
+  bump:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # so we can push back to the protected main branch
+          token: ${{ secrets.RELEASE_PAT }}
+      - uses: goabonga/multicz-action@v1
+      - run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          multicz bump --commit --tag
+          git push --follow-tags
