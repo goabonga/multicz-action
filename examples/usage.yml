@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Chris <goabonga@pm.me>
 
-# A reference workflow showing the most common multicz patterns, gated by
+# Reference workflow showing the most common multicz pattern, gated by
 # `multicz changed`. Drop into `.github/workflows/release.yml` (or split
 # across multiple workflows) and adapt the `build` matrix to your project.
+#
+# Uses the multicz-action sub-actions:
+#   - goabonga/multicz-action/changed@v1   for matrix gating
+#   - goabonga/multicz-action/bump@v1      for the actual release
+#
+# Each sub-action auto-installs multicz on the runner if it's not already
+# on PATH; you don't need a separate setup step.
 
 name: release
 
@@ -18,17 +25,25 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
-      list: ${{ steps.changed.outputs.list }}
+      list: ${{ steps.list.outputs.list }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: goabonga/multicz-action@v1
-      - id: changed
+
+      - name: List changed components
+        id: changed
+        uses: goabonga/multicz-action/changed@v1
+        with:
+          output: json
+
+      - name: Extract array for matrix
+        id: list
+        env:
+          CHANGED_JSON: ${{ steps.changed.outputs.json }}
         run: |
           set -euo pipefail
-          LIST=$(multicz changed --output json | jq -c '.changed')
-          echo "list=$LIST" >> "$GITHUB_OUTPUT"
+          echo "list=$(echo "$CHANGED_JSON" | jq -c '.changed')" >> "$GITHUB_OUTPUT"
 
   build:
     needs: detect
@@ -48,11 +63,16 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # so we can push back to the protected main branch
+          # PAT needed to push back through branch protection.
           token: ${{ secrets.RELEASE_PAT }}
-      - uses: goabonga/multicz-action@v1
-      - run: |
+
+      - name: Configure git as bot
+        run: |
           git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          multicz bump --commit --tag
-          git push --follow-tags
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - uses: goabonga/multicz-action/bump@v1
+        with:
+          commit: 'true'
+          tag: 'true'
+          push: 'true'
