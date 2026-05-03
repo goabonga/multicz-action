@@ -47,19 +47,45 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: multicz --version
 
-  actionlint:
-    name: actionlint
+  shellcheck:
+    name: shellcheck composite actions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Lint workflows and composite actions
-        # actionlint is the canonical linter for GitHub Actions YAML.
-        # It runs shellcheck on every `run:` block across workflows and
-        # composite actions, masking `${{ ... }}` expressions properly
-        # (which a raw shellcheck invocation can't do). One pass covers
-        # every `*/action.yml` plus the workflows in `.github/workflows/`.
+      - name: Extract embedded shell + run shellcheck
+        # actionlint only parses workflow YAML, not composite action.yml —
+        # so we extract the `run:` blocks ourselves. PyYAML walks the
+        # structure (a regex breaks on blank lines inside a `run: |`
+        # block, swallowing the rest of the script). GHA `${{ ... }}`
+        # expressions are masked to `$GHA_EXPR` (a single declared
+        # variable) so shellcheck doesn't flag them as either bash
+        # variables or string constants.
         run: |
           set -euo pipefail
-          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          ./actionlint -color .github/workflows/*.yml action.yml */action.yml
+          python3 - > /tmp/snippets.sh <<'PY'
+          import glob, pathlib, re, yaml
+
+          def walk(node):
+              if isinstance(node, dict):
+                  for k, v in node.items():
+                      if k == "run" and isinstance(v, str):
+                          yield v
+                      else:
+                          yield from walk(v)
+              elif isinstance(node, list):
+                  for x in node:
+                      yield from walk(x)
+
+          print("#!/usr/bin/env bash")
+          print('GHA_EXPR="${1:-}"  # masked stand-in for ${{ ... }} expressions')
+          print()
+          for path in sorted(glob.glob("action.yml") + glob.glob("*/action.yml")):
+              doc = yaml.safe_load(pathlib.Path(path).read_text())
+              for script in walk(doc):
+                  masked = re.sub(r"\$\{\{.*?\}\}", "$GHA_EXPR", script)
+                  print(f"# === {path} ===")
+                  print(masked)
+                  print()
+          PY
+          shellcheck -s bash /tmp/snippets.sh
