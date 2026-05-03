@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz changelog'
+description: 'Run `multicz changelog` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  component:
+    description: 'Restrict to a component. (--component)'
+    required: false
+    default: ''
+  output:
+    description: 'text | md [default: text]. (--output)'
+    required: false
+    default: ''
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json) — changelog does not support json output, so this is always empty."
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz changelog
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # value flags
+        if [ -n "${{ inputs.component }}" ]; then ARGS+=("--component" "${{ inputs.component }}"); fi
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=("--output" "${{ inputs.output }}"); fi
+
+        # short-flag aliases skipped: -c (--component), -o (--output)
+
+        multicz changelog "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        # changelog --output supports text|md only, no json mode
