@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz bump'
+description: 'Run `multicz bump` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  dry-run:
+    description: 'Plan only, do not write. (--dry-run, boolean)'
+    required: false
+    default: 'false'
+  component:
+    description: 'Restrict to these components. Repeatable (one entry per line). (--component)'
+    required: false
+    default: ''
+  output:
+    description: 'text | json [default: text]. (--output)'
+    required: false
+    default: ''
+  commit:
+    description: 'Stage written files and create a chore(release) commit. (--commit, boolean)'
+    required: false
+    default: 'false'
+  tag:
+    description: 'Create one annotated git tag per bumped component. (--tag, boolean)'
+    required: false
+    default: 'false'
+  push:
+    description: 'Push the release commit and tags to origin (--follow-tags). (--push, boolean)'
+    required: false
+    default: 'false'
+  no-changelog:
+    description: 'Skip CHANGELOG.md updates even if components declare one. (--no-changelog, boolean)'
+    required: false
+    default: 'false'
+  pre:
+    description: "Enter or continue a pre-release cycle with this label (e.g. 'rc', 'alpha', 'beta'). (--pre)"
+    required: false
+    default: ''
+  finalize:
+    description: 'Drop a pre-release suffix and ship the final version. (--finalize, boolean)'
+    required: false
+    default: 'false'
+  commit-message:
+    description: "Verbatim release commit message (overrides the project's release_commit_message template). (--commit-message)"
+    required: false
+    default: ''
+  force:
+    description: 'Force-bump <name>:<kind>. Repeatable (one entry per line). (--force)'
+    required: false
+    default: ''
+  sign:
+    description: 'GPG-sign the release commit AND tags. (--sign, boolean)'
+    required: false
+    default: 'false'
+  summary:
+    description: 'Append a markdown summary of what was released to this file. (--summary)'
+    required: false
+    default: ''
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json)"
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz bump
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # value flags
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=("--output" "${{ inputs.output }}"); fi
+        if [ -n "${{ inputs.pre }}" ]; then ARGS+=("--pre" "${{ inputs.pre }}"); fi
+        if [ -n "${{ inputs.commit-message }}" ]; then ARGS+=("--commit-message" "${{ inputs.commit-message }}"); fi
+        if [ -n "${{ inputs.summary }}" ]; then ARGS+=("--summary" "${{ inputs.summary }}"); fi
+
+        # boolean flags
+        if [ "${{ inputs.dry-run }}" = "true" ]; then ARGS+=("--dry-run"); fi
+        if [ "${{ inputs.commit }}" = "true" ]; then ARGS+=("--commit"); fi
+        if [ "${{ inputs.tag }}" = "true" ]; then ARGS+=("--tag"); fi
+        if [ "${{ inputs.push }}" = "true" ]; then ARGS+=("--push"); fi
+        if [ "${{ inputs.no-changelog }}" = "true" ]; then ARGS+=("--no-changelog"); fi
+        if [ "${{ inputs.finalize }}" = "true" ]; then ARGS+=("--finalize"); fi
+        if [ "${{ inputs.sign }}" = "true" ]; then ARGS+=("--sign"); fi
+
+        # repeatable flags (multi-line)
+        while IFS= read -r line; do
+          [ -n "$line" ] && ARGS+=("--component" "$line")
+        done <<< "${{ inputs.component }}"
+
+        while IFS= read -r line; do
+          [ -n "$line" ] && ARGS+=("--force" "$line")
+        done <<< "${{ inputs.force }}"
+
+        # short-flag aliases skipped: -n (--dry-run), -c (--component), -o (--output),
+        # -C (--commit), -t (--tag), -m (--commit-message)
+
+        multicz bump "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.output }}" = "json" ]; then
+          {
+            echo "json<<EOF_JSON"
+            cat /tmp/multicz-output.txt
+            echo "EOF_JSON"
+          } >> "$GITHUB_OUTPUT"
+        fi
