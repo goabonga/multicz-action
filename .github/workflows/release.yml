@@ -3,7 +3,7 @@
 
 # Release pipeline driven by multicz itself (dogfooding).
 #
-# Trigger:    push to main
+# Trigger:    completion of the `ci` workflow on main (success only)
 # Skip when:  HEAD is the bot's own release commit (loop guard)
 # What it does:
 #   1. install multicz via the action under test (`uses: ./`)
@@ -19,7 +19,11 @@
 name: release
 
 on:
-  push:
+  # Trigger only after the `ci` workflow finishes on `main`. The `if:`
+  # below filters on success, so a red CI never produces a release.
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -27,8 +31,16 @@ permissions:
 
 jobs:
   release:
-    # Loop guard: don't recurse on the bot's own release push.
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
+    # Two guards on the same `if`:
+    #   1. CI must have actually succeeded (workflow_run fires on every
+    #      completion: success / failure / cancelled — we want only the
+    #      green ones).
+    #   2. Don't recurse on the bot's own release push.
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        !startsWith(github.event.workflow_run.head_commit.message, 'chore(release)')
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
