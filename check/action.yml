@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz check'
+description: 'Run `multicz check` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  file:
+    description: "Commit message file (use '-' to read from stdin). (positional FILE, required)"
+    required: true
+  type:
+    description: 'Restrict allowed commit types. Repeatable (one entry per line). (--type)'
+    required: false
+    default: ''
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json) — check does not support --output, so this is always empty."
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz check
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # repeatable flags (multi-line)
+        while IFS= read -r line; do
+          [ -n "$line" ] && ARGS+=("--type" "$line")
+        done <<< "${{ inputs.type }}"
+
+        # positional argument (required)
+        ARGS+=("${{ inputs.file }}")
+
+        multicz check "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        # check has no --output flag, json output is never populated
