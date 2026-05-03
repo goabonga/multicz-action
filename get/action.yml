@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz get'
+description: 'Run `multicz get` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  target:
+    description: 'component[.field]. (positional TARGET, required)'
+    required: true
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json) — get does not support --output, so this is always empty."
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz get
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # positional argument (required)
+        ARGS+=("${{ inputs.target }}")
+
+        multicz get "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        # get has no --output flag, json output is never populated
