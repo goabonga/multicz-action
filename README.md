@@ -73,7 +73,12 @@ Boolean inputs are passed as the strings `'true'` / `'false'`. Repeatable
 flags (such as `--component` or `--force` on `bump`) take a multi-line
 input — one value per line.
 
-## Example: gate a CI matrix on changed components
+## Examples
+
+### Detect what changed (matrix gating)
+
+Skip downstream jobs when nothing has changed; otherwise drive a per-component
+matrix off the `changed` sub-action.
 
 ```yaml
 jobs:
@@ -109,7 +114,88 @@ jobs:
       - run: echo "building ${{ matrix.component }}"
 ```
 
-## Example: bump, tag, push
+### Plan the next bump
+
+Print the full bump plan (component, kind, reasons) to the GitHub Actions
+step summary on every push, before any release work happens.
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    fetch-depth: 0
+
+- uses: goabonga/multicz-action/plan@v1
+  id: plan
+  with:
+    summary: ${{ runner.temp }}/plan.md
+
+- run: cat "${{ runner.temp }}/plan.md" >> "$GITHUB_STEP_SUMMARY"
+```
+
+### Explain why a component bumps
+
+```yaml
+- uses: goabonga/multicz-action/explain@v1
+  with:
+    component: api
+```
+
+The reasoning (commit list, mirror cascades, trigger cascades) lands in the
+job log as plain text.
+
+### Read the current version of a component
+
+Useful for downstream steps that need the version before any bump runs —
+for instance, to tag a Docker image with the current `appVersion`.
+
+```yaml
+- id: ver
+  uses: goabonga/multicz-action/get@v1
+  with:
+    target: api
+
+- run: echo "current api version is ${{ steps.ver.outputs.stdout }}"
+```
+
+### Print the changelog for a component
+
+```yaml
+- uses: goabonga/multicz-action/changelog@v1
+  with:
+    component: api
+    output: md
+```
+
+Pipe `outputs.stdout` to `$GITHUB_STEP_SUMMARY` if you want the markdown
+rendered in the run summary.
+
+### List the artifacts a release would publish
+
+```yaml
+- uses: goabonga/multicz-action/artifacts@v1
+  with:
+    component: api
+    output: json
+  id: artifacts
+
+- run: echo '${{ steps.artifacts.outputs.json }}' | jq
+```
+
+### Validate the config in PRs
+
+Defense-in-depth: every PR runs `multicz validate --strict` to catch
+broken configs before they hit `main`.
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    fetch-depth: 0
+- uses: goabonga/multicz-action/validate@v1
+  with:
+    strict: 'true'
+```
+
+### Bump, tag, push (signed)
 
 ```yaml
 - uses: actions/checkout@v6
@@ -120,19 +206,47 @@ jobs:
     commit: 'true'
     tag: 'true'
     push: 'true'
+    sign: 'true'      # requires GPG_PRIVATE_KEY + GPG_PASSPHRASE secrets
 ```
 
-Add `sign: 'true'` (and configure `GPG_PRIVATE_KEY` + `GPG_PASSPHRASE`
-secrets at the workflow level) to produce a GPG-signed release commit
-and tag.
+Drop `sign: 'true'` if you don't have GPG configured — multicz still
+commits and tags, just unsigned.
 
-## Example: explain why a component is bumping
+### Generate release notes for a tag
+
+Render the markdown body for `gh release create`:
 
 ```yaml
-- uses: goabonga/multicz-action/explain@v1
+- uses: goabonga/multicz-action/release-notes@v1
+  id: notes
   with:
-    component: api
+    tag: v1.2.3
+
+- env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    NOTES: ${{ steps.notes.outputs.stdout }}
+  run: |
+    printf '%s' "$NOTES" > /tmp/notes.md
+    gh release create v1.2.3 --title v1.2.3 --notes-file /tmp/notes.md
 ```
+
+### Lint a commit message (commit-msg hook)
+
+```yaml
+- uses: goabonga/multicz-action/check@v1
+  with:
+    file: .git/COMMIT_EDITMSG
+```
+
+Drop into a `commit-msg` hook locally, or run on PR titles in CI to
+enforce conventional-commits formatting.
+
+### A complete release pipeline
+
+Chain `plan` → `bump` → `release-notes` → `gh release create` to publish
+a new version on every green push to `main`. See the canonical example
+in [`examples/usage.yml`](examples/usage.yml) and the dogfooded
+implementation in [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ## Versioning
 
