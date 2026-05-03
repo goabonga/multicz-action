@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+# multicz config for the multicz-action repo itself.
+#
+# A GitHub Action's "version" lives in two places:
+#   - the git tag (`v1.2.3`) — what users reference in `uses:`
+#   - a VERSION file at the repo root — the single source of truth that
+#     multicz bumps; the release workflow reads it to cut the tag.
+#
+# tag_format drops the component prefix because there is exactly one
+# component (the action itself); the floating major tag (`v1`) is
+# maintained by .github/workflows/release.yml on every push of `vX.Y.Z`.
+
+[project]
+commit_convention = "conventional"
+tag_format        = "v{version}"
+initial_version   = "0.0.0"
+
+[components.action]
+paths      = ["action.yml", "VERSION"]
+bump_files = [{ file = "VERSION", key = "regex:^(.*)$" }]
+changelog  = "CHANGELOG.md"
