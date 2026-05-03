@@ -63,6 +63,11 @@ inputs:
     required: false
     default: ''
 
+  multicz-version:
+    description: 'multicz version to install if not already on PATH (PyPI specifier, or "latest")'
+    required: false
+    default: 'latest'
+
 outputs:
   stdout:
     description: "Raw stdout from the multicz invocation"
@@ -81,7 +86,11 @@ runs:
           echo "multicz not on PATH — installing via uv"
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.local/bin:$PATH"
-          uv tool install multicz
+          if [ "${{ inputs.multicz-version }}" = "latest" ]; then
+            uv tool install multicz
+          else
+            uv tool install "multicz==${{ inputs.multicz-version }}"
+          fi
         fi
         multicz --version
 
