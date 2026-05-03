@@ -57,10 +57,9 @@ jobs:
         # actionlint only parses workflow YAML, not composite action.yml —
         # so we extract the `run:` blocks ourselves. PyYAML walks the
         # structure (a regex breaks on blank lines inside a `run: |`
-        # block, swallowing the rest of the script). GHA `${{ ... }}`
-        # expressions are masked to `$GHA_EXPR` (a single declared
-        # variable) so shellcheck doesn't flag them as either bash
-        # variables or string constants.
+        # block, swallowing the rest of the script). GHA expressions are
+        # masked to `$GHA_EXPR` (a single declared variable) so shellcheck
+        # doesn't flag them as either bash variables or string constants.
         run: |
           set -euo pipefail
           python3 - > /tmp/snippets.sh <<'PY'
@@ -78,7 +77,7 @@ jobs:
                       yield from walk(x)
 
           print("#!/usr/bin/env bash")
-          print('GHA_EXPR="${1:-}"  # masked stand-in for ${{ ... }} expressions')
+          print('GHA_EXPR="${1:-}"  # masked stand-in for GHA expressions')
           print()
           for path in sorted(glob.glob("action.yml") + glob.glob("*/action.yml")):
               doc = yaml.safe_load(pathlib.Path(path).read_text())
