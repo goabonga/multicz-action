@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    name: smoke (latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Use the action against itself
+        uses: ./
+      - name: multicz is on PATH
+        run: |
+          which multicz
+          multicz --version
+          multicz --help
+
+  pinned:
+    name: smoke (pinned version)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./
+        with:
+          version: '0.4.0'
+      - name: multicz reports the pinned version
+        run: |
+          multicz --version | grep -F '0.4.0'
+
+  python-versions:
+    name: smoke (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./
+        with:
+          python-version: ${{ matrix.python }}
+      - run: multicz --version
+
+  shellcheck:
+    name: shellcheck action.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Extract and lint embedded shell
+        run: |
+          # Pull every `run: |` block out of action.yml and feed it to
+          # shellcheck so we catch quoting/expansion bugs in the action's
+          # composite steps before they hit users.
+          python3 - <<'PY' > /tmp/snippets.sh
+          import re, sys, pathlib
+          src = pathlib.Path('action.yml').read_text()
+          for m in re.finditer(r'run: \|\n((?:[ \t]+.*\n?)+)', src):
+              block = m.group(1)
+              dedent = min((len(l) - len(l.lstrip()) for l in block.splitlines() if l.strip()), default=0)
+              print('\n'.join(l[dedent:] for l in block.splitlines()))
+              print()
+          PY
+          shellcheck -s bash /tmp/snippets.sh
