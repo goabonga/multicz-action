@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz'
+description: 'Install the multicz CLI and make it available on PATH for subsequent steps. Multi-component versioning for monorepos.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'multicz version to install (PyPI version specifier, or "latest")'
+    required: false
+    default: 'latest'
+  python-version:
+    description: 'Python version uv should provide for the multicz install'
+    required: false
+    default: '3.12'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v8.1.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install multicz
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          uv tool install multicz
+        else
+          uv tool install "multicz==${{ inputs.version }}"
+        fi
+        multicz --version
