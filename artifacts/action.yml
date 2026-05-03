@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz artifacts'
+description: 'Run `multicz artifacts` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  component:
+    description: 'Component to render artifacts for. Required unless `all` is true. (positional COMPONENT)'
+    required: false
+    default: ''
+  all:
+    description: 'Render artifacts for every component. (--all, boolean)'
+    required: false
+    default: 'false'
+  version:
+    description: 'Render with this explicit version instead of the current one. (--version)'
+    required: false
+    default: ''
+  output:
+    description: 'text | json [default: text]. (--output)'
+    required: false
+    default: ''
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json)"
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH — installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install multicz
+        fi
+        multicz --version
+
+    - name: Run multicz artifacts
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # value flags (options first, positional last)
+        if [ -n "${{ inputs.version }}" ]; then ARGS+=("--version" "${{ inputs.version }}"); fi
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=("--output" "${{ inputs.output }}"); fi
+
+        # boolean flags
+        if [ "${{ inputs.all }}" = "true" ]; then ARGS+=("--all"); fi
+
+        # positional argument
+        if [ -n "${{ inputs.component }}" ]; then ARGS+=("${{ inputs.component }}"); fi
+
+        # short-flag aliases skipped: -o (--output)
+
+        multicz artifacts "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.output }}" = "json" ]; then
+          {
+            echo "json<<EOF_JSON"
+            cat /tmp/multicz-output.txt
+            echo "EOF_JSON"
+          } >> "$GITHUB_OUTPUT"
+        fi
