@@ -1,46 +1,98 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Chris <goabonga@pm.me>
 
-# Triggered when a `vX.Y.Z` tag is pushed (typically by `multicz bump
-# --commit --tag` followed by `git push --follow-tags`). Moves the
-# floating major tag (`vX`) so consumers using `@v1` always pick up
-# the latest patch / minor automatically.
+# Release pipeline driven by multicz itself (dogfooding).
+#
+# Trigger:    push to main
+# Skip when:  HEAD is the bot's own release commit (loop guard)
+# What it does:
+#   1. install multicz via the action under test (`uses: ./`)
+#   2. `multicz changed` → exit cleanly if nothing to release
+#   3. `multicz bump --commit --tag` → writes VERSION + CHANGELOG.md,
+#      commits as the bot, creates the `vX.Y.Z` tag
+#   4. push the bump commit and tag back to main
+#   5. move the floating major tag (`vX`) so consumers using `@v1`
+#      track the latest patch / minor automatically
+#   6. cut a GitHub Release whose notes are the latest CHANGELOG.md
+#      section (the one multicz just wrote)
 
 name: release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
-  major-tag:
+  release:
+    # Loop guard: don't recurse on the bot's own release push.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # PAT bypasses branch protection on main; falls back to the
+          # workflow token for repos without protection rules.
+          token: ${{ secrets.RELEASE_PAT || github.token }}
+
+      - name: Install multicz (via this action)
+        uses: ./
+
+      - name: Detect changed components
+        id: changed
+        run: |
+          set -euo pipefail
+          COUNT=$(multicz changed --output json | jq -r '.changed | length')
+          if [ "$COUNT" = "0" ]; then
+            echo "nothing to release"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump and tag via multicz
+        if: steps.changed.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          multicz bump --commit --tag
+          # multicz creates `vX.Y.Z` on the current commit; capture it
+          # so subsequent steps know what to publish and re-tag.
+          TAG=$(git tag --points-at HEAD --sort=-v:refname | head -1)
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          git push --follow-tags
 
       - name: Move floating major tag
-        env:
-          TAG: ${{ github.ref_name }}
+        if: steps.changed.outputs.release == 'true'
         run: |
           set -euo pipefail
           MAJOR="${TAG%%.*}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -fa "$MAJOR" "$TAG" -m "Latest $MAJOR release"
           git push origin "$MAJOR" --force
 
+      - name: Extract release notes from CHANGELOG.md
+        if: steps.changed.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          # Take the most recent `## ` section — that's the entry
+          # multicz wrote for $TAG.
+          awk '
+            /^## / { count++; if (count==2) exit }
+            count==1 { print }
+          ' CHANGELOG.md | tail -n +2 > /tmp/notes.md
+          echo "--- notes ---"
+          cat /tmp/notes.md
+
       - name: Create GitHub Release
+        if: steps.changed.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           gh release create "$TAG" \
             --title "$TAG" \
-            --generate-notes
+            --notes-file /tmp/notes.md
