@@ -230,6 +230,27 @@ Render the markdown body for `gh release create`:
     gh release create v1.2.3 --title v1.2.3 --notes-file /tmp/notes.md
 ```
 
+### Customize cascade lines per mirror
+
+The default `### Dependencies` section in a downstream component's
+CHANGELOG can be replaced — per mirror — by declaring
+`changelog_section` and `changelog_format` in the upstream component's
+`multicz.toml`:
+
+```toml
+[[components.api.mirrors]]
+file              = "charts/myapp/Chart.yaml"
+key               = "appVersion"
+changelog_section = "Subchart updates"
+changelog_format  = "Bump `myapp-api` dependency to `{upstream_version}`"
+```
+
+When `goabonga/multicz-action/bump@v1` writes the downstream changelog,
+it picks up these fields automatically — no extra action input required.
+See the [Concepts page](https://goabonga.github.io/multicz/concepts/#customizing-the-cascade-line)
+for the full pattern (including how to merge cascade lines into existing
+`Features` / `Fixes` sections).
+
 ### Lint a commit message (commit-msg hook)
 
 ```yaml
