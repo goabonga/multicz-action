@@ -1,7 +1,7 @@
 # multicz-action
 
-GitHub Action that installs [multicz](https://github.com/goabonga/multicz) — a
-multi-component versioning tool for monorepos — and exposes every CLI
+GitHub Action that installs [multicz](https://github.com/goabonga/multicz) - a
+multi-component versioning tool for monorepos - and exposes every CLI
 subcommand as a typed sub-action.
 
 ## Usage
@@ -71,7 +71,7 @@ action under `goabonga/multicz-action/<command>@v1`. Each one:
 
 Boolean inputs are passed as the strings `'true'` / `'false'`. Repeatable
 flags (such as `--component` or `--force` on `bump`) take a multi-line
-input — one value per line.
+input - one value per line.
 
 ## Examples
 
@@ -145,7 +145,7 @@ job log as plain text.
 
 ### Read the current version of a component
 
-Useful for downstream steps that need the version before any bump runs —
+Useful for downstream steps that need the version before any bump runs -
 for instance, to tag a Docker image with the current `appVersion`.
 
 ```yaml
@@ -209,7 +209,7 @@ broken configs before they hit `main`.
     sign: 'true'      # requires GPG_PRIVATE_KEY + GPG_PASSPHRASE secrets
 ```
 
-Drop `sign: 'true'` if you don't have GPG configured — multicz still
+Drop `sign: 'true'` if you don't have GPG configured - multicz still
 commits and tags, just unsigned.
 
 ### Generate release notes for a tag
@@ -252,10 +252,10 @@ implementation in [`.github/workflows/release.yml`](.github/workflows/release.ym
 
 This action follows the standard GitHub Actions versioning scheme:
 
-- `goabonga/multicz-action@v1` — floating major tag, gets new features
+- `goabonga/multicz-action@v1` - floating major tag, gets new features
   and fixes within `v1.x.x`.
-- `goabonga/multicz-action@v1.2.3` — pinned to an exact version.
-- `goabonga/multicz-action@<sha>` — pinned to a specific commit (most
+- `goabonga/multicz-action@v1.2.3` - pinned to an exact version.
+- `goabonga/multicz-action@<sha>` - pinned to a specific commit (most
   reproducible, recommended for security-sensitive use cases).
 
 ## Documentation

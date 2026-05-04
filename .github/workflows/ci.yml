@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Extract embedded shell + run shellcheck
-        # actionlint only parses workflow YAML, not composite action.yml —
+        # actionlint only parses workflow YAML, not composite action.yml -
         # so we extract the `run:` blocks ourselves. PyYAML walks the
         # structure (a regex breaks on blank lines inside a `run: |`
         # block, swallowing the rest of the script). GHA expressions are

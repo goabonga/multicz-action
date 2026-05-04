@@ -6,7 +6,7 @@
 
 Use one of these private channels:
 
-- **Preferred:** GitHub's private vulnerability reporting —
+- **Preferred:** GitHub's private vulnerability reporting -
   <https://github.com/goabonga/multicz-action/security/advisories/new>
 - Email: <goabonga@pm.me>
 
@@ -29,7 +29,7 @@ SHA for byte-stable supply chain.
 ## Threat model
 
 This action is a thin wrapper that invokes
-[`uv tool install multicz`](https://github.com/goabonga/multicz) — it
+[`uv tool install multicz`](https://github.com/goabonga/multicz) - it
 runs entirely inside your GitHub Actions runner and writes the multicz
 binary to `$PATH`. The shell script in `action.yml` does not download
 arbitrary content beyond what `uv` and `pip` resolve from PyPI.

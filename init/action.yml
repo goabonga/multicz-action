@@ -55,7 +55,7 @@ runs:
       shell: bash
       run: |
         if ! command -v multicz >/dev/null 2>&1; then
-          echo "multicz not on PATH — installing via uv"
+          echo "multicz not on PATH - installing via uv"
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.local/bin:$PATH"
           if [ "${{ inputs.multicz-version }}" = "latest" ]; then

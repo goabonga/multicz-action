@@ -10,8 +10,8 @@
 #   1. install multicz (top-level action)
 #   2. attribute the release commit to the upstream pusher
 #   3. (optional) import a GPG key and sign commit + tags
-#   4. `./plan` with output: json — exit cleanly if nothing pending
-#   5. `./bump` with commit/tag/push/sign — multicz writes VERSION +
+#   4. `./plan` with output: json - exit cleanly if nothing pending
+#   5. `./bump` with commit/tag/push/sign - multicz writes VERSION +
 #      CHANGELOG.md, commits, tags, pushes
 #   6. move the floating major tag (`vX`) so consumers using `@v1`
 #      track the latest patch / minor automatically

@@ -29,7 +29,7 @@ outputs:
     description: "Raw stdout from the multicz invocation"
     value: ${{ steps.run.outputs.stdout }}
   json:
-    description: "JSON payload (only set when output: json) — changelog does not support json output, so this is always empty."
+    description: "JSON payload (only set when output: json) - changelog does not support json output, so this is always empty."
     value: ${{ steps.run.outputs.json }}
 
 runs:
@@ -39,7 +39,7 @@ runs:
       shell: bash
       run: |
         if ! command -v multicz >/dev/null 2>&1; then
-          echo "multicz not on PATH — installing via uv"
+          echo "multicz not on PATH - installing via uv"
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.local/bin:$PATH"
           if [ "${{ inputs.multicz-version }}" = "latest" ]; then

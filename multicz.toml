@@ -4,8 +4,8 @@
 # multicz config for the multicz-action repo itself.
 #
 # A GitHub Action's "version" lives in two places:
-#   - the git tag (`v1.2.3`) — what users reference in `uses:`
-#   - a VERSION file at the repo root — the single source of truth that
+#   - the git tag (`v1.2.3`) - what users reference in `uses:`
+#   - a VERSION file at the repo root - the single source of truth that
 #     multicz bumps; the release workflow reads it to cut the tag.
 #
 # tag_format drops the component prefix because there is exactly one

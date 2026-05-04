@@ -11,7 +11,7 @@ git clone https://github.com/goabonga/multicz-action
 cd multicz-action
 ```
 
-There is no language runtime, no build step — just YAML and a small bit of
+There is no language runtime, no build step - just YAML and a small bit of
 shell inside the action.
 
 ## Testing
@@ -46,7 +46,7 @@ commit type the work will produce:
 
 ## Commit messages
 
-[Conventional Commits](https://www.conventionalcommits.org/) — multicz reads
+[Conventional Commits](https://www.conventionalcommits.org/) - multicz reads
 them to drive its own release pipeline (and this action is versioned with
 multicz).
 
@@ -60,7 +60,7 @@ multicz).
 Guidelines:
 
 - One logical change per commit.
-- Imperative mood: "add", "fix", "remove" — not "added", "fixes", "removing".
+- Imperative mood: "add", "fix", "remove" - not "added", "fixes", "removing".
 - No trailing period on the summary.
 - No `Co-Authored-By` footers unless the work was actually pair-authored.
 
