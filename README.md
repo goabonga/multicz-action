@@ -65,6 +65,8 @@ action under `goabonga/multicz-action/<command>@v1`. Each one:
 | `goabonga/multicz-action/explain@v1`        | `multicz explain`      | why a component bumps             |
 | `goabonga/multicz-action/bump@v1`           | `multicz bump`         | apply the plan, commit, tag, push |
 | `goabonga/multicz-action/get@v1`            | `multicz get`          | read a current version            |
+| `goabonga/multicz-action/config@v1`         | `multicz config`       | print the effective config (TOML/JSON) |
+| `goabonga/multicz-action/graph@v1`          | `multicz graph`        | render the cascade DAG (tree/mermaid/dot) |
 | `goabonga/multicz-action/changelog@v1`      | `multicz changelog`    | per-component log                 |
 | `goabonga/multicz-action/validate@v1`       | `multicz validate`     | config + repo sanity check        |
 | `goabonga/multicz-action/check@v1`          | `multicz check`        | conventional-commits commit-msg hook |

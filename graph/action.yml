@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Chris <goabonga@pm.me>
+
+name: 'multicz graph'
+description: 'Run `multicz graph` with structured inputs and outputs.'
+author: 'Chris <goabonga@pm.me>'
+
+branding:
+  icon: 'share-2'
+  color: 'blue'
+
+inputs:
+  output:
+    description: 'tree | mermaid | dot [default: tree]. (--output)'
+    required: false
+    default: ''
+  component:
+    description: 'Restrict to the cascade rooted at this component (downstream-only). (--component)'
+    required: false
+    default: ''
+
+  multicz-version:
+    description: 'multicz version to install if not already on PATH (PyPI specifier, or "latest")'
+    required: false
+    default: 'latest'
+
+outputs:
+  stdout:
+    description: "Raw stdout from the multicz invocation (the rendered graph in tree / mermaid / dot form)"
+    value: ${{ steps.run.outputs.stdout }}
+  json:
+    description: "JSON payload (only set when output: json) - graph does not support --output json, so this is always empty."
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure multicz is installed
+      shell: bash
+      run: |
+        if ! command -v multicz >/dev/null 2>&1; then
+          echo "multicz not on PATH - installing via uv"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          if [ "${{ inputs.multicz-version }}" = "latest" ]; then
+            uv tool install multicz
+          else
+            uv tool install "multicz==${{ inputs.multicz-version }}"
+          fi
+        fi
+        multicz --version
+
+    - name: Run multicz graph
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS=()
+
+        # value flags
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=("--output" "${{ inputs.output }}"); fi
+        if [ -n "${{ inputs.component }}" ]; then ARGS+=("--component" "${{ inputs.component }}"); fi
+
+        # short-flag aliases skipped: -o (--output), -c (--component)
+
+        multicz graph "${ARGS[@]}" | tee /tmp/multicz-output.txt
+
+        {
+          echo "stdout<<EOF_STDOUT"
+          cat /tmp/multicz-output.txt
+          echo "EOF_STDOUT"
+        } >> "$GITHUB_OUTPUT"
+
+        # graph has no --output json mode; the json output stays empty
