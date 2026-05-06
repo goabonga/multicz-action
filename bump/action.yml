@@ -62,6 +62,10 @@ inputs:
     description: 'Append a markdown summary of what was released to this file. (--summary)'
     required: false
     default: ''
+  no-post-bump:
+    description: 'Skip post_bump shell hooks for this run, even when project.post_bump_policy = "allow". (--no-post-bump, boolean)'
+    required: false
+    default: 'false'
 
   multicz-version:
     description: 'multicz version to install if not already on PATH (PyPI specifier, or "latest")'
@@ -115,6 +119,7 @@ runs:
         if [ "${{ inputs.no-changelog }}" = "true" ]; then ARGS+=("--no-changelog"); fi
         if [ "${{ inputs.finalize }}" = "true" ]; then ARGS+=("--finalize"); fi
         if [ "${{ inputs.sign }}" = "true" ]; then ARGS+=("--sign"); fi
+        if [ "${{ inputs.no-post-bump }}" = "true" ]; then ARGS+=("--no-post-bump"); fi
 
         # repeatable flags (multi-line)
         while IFS= read -r line; do
