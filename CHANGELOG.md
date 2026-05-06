@@ -2,6 +2,13 @@
 
 All notable changes to this component are documented here.
 
+## [1.1.0] - 2026-05-06
+
+### Features
+
+- add config and graph sub-actions (`2a0c2a8`)
+- **bump**: expose --no-post-bump as a sub-action input (`0cd5e87`)
+
 ## [1.0.0] - 2026-05-03
 
 ### Breaking changes
